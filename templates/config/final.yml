@@ -1,0 +1,6 @@
+---
+blobstore:
+  provider: local
+  options:
+    blobstore_path: /tmp/{{ product['name'] }}-blobs
+final_name: {{ product['name'] }}

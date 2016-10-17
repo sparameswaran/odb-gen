@@ -1,0 +1,8 @@
+---
+name: {{ product['name'] }}
+
+packages: [odb-service-adapter]
+
+templates: {}
+
+properties: {}

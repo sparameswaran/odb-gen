@@ -19,7 +19,8 @@ odb_release:
   name: on-demand-service-broker
   version: 0.9
   file: resources/on-demand-service-broker-release.tgz
-  
+
+
 # Managed Service Bosh release Implementation 
 # that contains the actual jobs
 managed_service_releases: 
@@ -36,7 +37,8 @@ managed_service_releases:
   # List all jobs exposed by the managed service release
   jobs:
   - sampleproduct-dependency1
-  
+
+
 # Vms that need to be spawned off by the ODB with associated jobs
 vms:
 - name: SampleProduct-Server   
@@ -51,13 +53,10 @@ vms:
     serviceA:
       flagA: enabled
       flagB: disabled
-
-
 - name: SampleProduct-Monitor 
   # Can have multiple jobs within a given vm type                     
   job_types: 
   - name: sampleproduct-monitor        # should match jobs in release
-    release: sampleproduct-service-release
   properties:
     admin_port: 9090
     listen_port: 9090
@@ -99,4 +98,4 @@ vm_updates:
   max_in_flight: 5                  # Defaults to 10 
   canary_watch_time: "30000-240000" # Default value:  "30000-240000"
   update_watch_time: "30000-240000" # Default value:  "30000-240000"
-  serial: true                      # Defaults to true
+  serial: 'true'                    # Defaults to true

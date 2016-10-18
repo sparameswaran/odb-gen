@@ -158,9 +158,8 @@ def validate_plan_config(context):
             vm['name_lower'] = vm['name'].lower()
             vm['nameInGo']   = vm['name_lower'].replace('-','_')
             vm['properties'] = {}
-            print 'VM Properties: '
             vm['properties']['type'] = plan['name']
-            dumpclean(vm['properties'])
+            #dumpclean(vm['properties'])
 
 def validate_vm_updates_config(context): 
     vm_updates = context.get('vm_updates', {})
@@ -168,7 +167,7 @@ def validate_vm_updates_config(context):
     vm_updates['max_in_flight']     = vm_updates.get('max_in_flight', 10)
     vm_updates['canary_watch_time'] = vm_updates.get('canary_watch_time', '30000-240000')
     vm_updates['update_watch_time'] = vm_updates.get('update_watch_time', '30000-240000')
-    vm_updates['serial']            = vm_updates.get('serial', 'true')
+    vm_updates['serial']            = str(vm_updates.get('serial', 'true')).lower()
 
     context['vm_updates'] = vm_updates
    

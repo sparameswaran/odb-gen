@@ -85,6 +85,8 @@ func (a *ManifestGenerator) GenerateManifest(serviceDeployment serviceadapter.Se
 	arbitraryParameters := requestParams.ArbitraryParams()
 	a.StderrLogger.Printf("%+v", arbitraryParameters)
 	
+	deploymentInstanceId := strings.Replace(serviceDeployment.DeploymentName, "service-instance_", "", 1)
+	
 	{% for jobInstance in vmInstances %}
     {% for jobType in jobInstance['job_types'] %}
     
@@ -92,9 +94,10 @@ func (a *ManifestGenerator) GenerateManifest(serviceDeployment serviceadapter.Se
 	{{jobInstance['nameInGo']}}vm_{{jobType['nameInGo']}}_passwd := RandStringRunes(20)
 	
 	{% endfor %}
+	
 	{{jobInstance['nameInGo']}}Route := arbitraryParameters["{{jobInstance['nameInGo']}}_route"]
 	if ({{jobInstance.nameInGo}}Route == nil) {
-		{{jobInstance.nameInGo}}Route = fmt.Sprintf("{{jobInstance['name']}}-%s", serviceDeployment.DeploymentName)
+		{{jobInstance.nameInGo}}Route = fmt.Sprintf("{{jobInstance['name']}}-%s", deploymentInstanceId)
 	}
 	{% endfor %}
 

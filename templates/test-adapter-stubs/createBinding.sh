@@ -14,7 +14,7 @@ fi
 
 . $SCRIPT_DIR/../go.env
 
-if [ $# -eq 1]; then
+if [ $# -eq 1 ]; then
 	input=$1
 else
   	input="manifest.json"
@@ -28,6 +28,7 @@ else
 	input="sample_manifest.json"
 	echo "Using the sample_manifest.json for testing create_test_binding"
 	echo "Save output of ./genManifest.sh and use convertYml2Json.sh to generate the manifest.json"
+	echo ""
 fi
 
 ./create_test_binding.py create-binding $input

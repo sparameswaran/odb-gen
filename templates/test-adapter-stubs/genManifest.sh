@@ -1,5 +1,5 @@
 #!/bin/bash
-set -xv
+#set -xv
 SCRIPT_DIR=$(dirname $0)
 if [ "$(pwd)" != "$SCRIPT_DIR" -a "." != "$SCRIPT_DIR" ]; then
 	echo "genManifest.sh should be run from test-adapter-stubs folder"

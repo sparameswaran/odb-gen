@@ -254,6 +254,50 @@ job_types:
     default:
       identity: vcap
 
+- name: upgrade-sub-deployments
+  resource_label: Upgrade Sub-deployments
+  single_az_only: true
+  templates:
+  - name: upgrade-sub-deployments
+    release: {{ odb_release['name'] }}
+    
+  errand: true
+  resource_definitions:
+  - name: ram
+    type: integer
+    configurable: false
+    default: 1_024
+    constraints:
+      min: 1_024
+  - name: ephemeral_disk
+    type: integer
+    configurable: false
+    default: 2_048
+    constraints:
+      min: 1_024
+  - name: persistent_disk
+    type: integer
+    configurable: false
+    default: 0
+  - name: cpu
+    type: integer
+    configurable: false
+    default: 1
+    constraints:
+      min: 1
+  static_ip: 0
+  dynamic_ip: 1
+  max_in_flight: 1
+  instance_definition:
+    name: instances
+    type: integer
+    default: 1
+  property_blueprints:
+  - name: vm_credentials
+    type: salted_credentials
+    default:
+      identity: vcap
+
 - name: unregister_on_demand_service_broker
   resource_label: On Demand Service Broker Deregistrar
   single_az_only: true

@@ -131,12 +131,23 @@ job_types:
         service_description: {{product['description']}}
         bindable: true
         plan_updatable: true
-        tags: [{{ product['short_name']}}]
+        tags: [{{product['short_name']}}, {{ product['tags'] }}]
+        metadata: 
+          displayName: {{product['short_name']}}-on-demand
+          imageUrl: {{product['image_url']}}
+          longDescription: {{product['description']}}
+          providerDisplayName: {{product['provider']}}
+          documentationUrl: {{product['doc_url']}}
+          supportUrl: {{product['support_url']}}
+        
         plans:
         {% for plan in service['service_plans'] %}
           - name: {{ plan['name']}}
             plan_id: {{ plan['id']}}
             description: {{ plan['description']}}
+            metadata: 
+              bullets: [ {{ plan['bullets'] }}]
+              displayName: {{ plan['name']}}
             properties: 
               cf:
                 disable_ssl_cert_verification: true

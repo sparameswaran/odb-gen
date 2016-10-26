@@ -1,8 +1,14 @@
 product:
   name: sampleproduct-service-adapter
   short_name: sampleproduct
+  tags: 'sampleproduct, SomeService, SomeTag'
   description: Sample Product On Demand Managed service 
   dashboard: sampleproduct-dashboard # CF App Domain would be added to it
+  image_url: https://someimage.product.com/logo.png
+  provider: XYZ Provider
+  doc_url: https://docs.product.com
+  support_url: https://support.product.com
+  
   tile:
     short_name: sampleproduct-service-on-demand
     label: Sample Product OnDemand Service
@@ -70,6 +76,7 @@ service:
   - name: small
     id: small-plan-guid
     description: test small
+    bullets: 'free, small, service-type, 5 connections/memory'
     vms:
       - name: SampleProduct-Server
         instances: 2
@@ -78,6 +85,7 @@ service:
   - name: medium
     id: medium-plan-guid
     description: test medium
+    bullets: 'free, medium, service-type, 50 connections/memory'
     vms:
       - name: SampleProduct-Server
         instances: 5 
@@ -86,6 +94,7 @@ service:
   - name: large
     id: large-plan-guid
     description: test large
+    bullets: 'paid, large, service-type, 100 connections/memory'
     vms:
       - name: SampleProduct-Server
         instances: 10

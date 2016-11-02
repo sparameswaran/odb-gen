@@ -6,6 +6,7 @@ import (
 	"strings"	
 	//"log"
 	//"os"
+	"reflect"
 	"time"
 	"math/rand"
 	"strconv"
@@ -15,6 +16,7 @@ import (
 )
 
 const OnlyStemcellAlias = "only-stemcell"
+const PARENT_NODE_FOR_ADDN_ATTRS = "parent_node_for_attributes"
 
 func init() {
     rand.Seed(time.Now().UnixNano())
@@ -47,6 +49,11 @@ func (a *ManifestGenerator) GenerateManifest(serviceDeployment serviceadapter.Se
 	previousManifest *bosh.BoshManifest,
 	previousPlan *serviceadapter.Plan,
 ) (bosh.BoshManifest, error) {
+
+	// If this is an update, handle the changes inside updateManifest and return the manifest
+	if (previousManifest != nil) {
+		return UpdateManifest(serviceDeployment, servicePlan, requestParams, previousManifest, previousPlan)
+	}
 
 	//logger := log.New(os.Stderr, "[{{product['name']}}] ", log.LstdFlags)
 	var releases []bosh.Release
@@ -86,7 +93,7 @@ func (a *ManifestGenerator) GenerateManifest(serviceDeployment serviceadapter.Se
 	a.StderrLogger.Printf("%+v", arbitraryParameters)
 	
 	deploymentInstanceId := strings.Replace(serviceDeployment.DeploymentName, "service-instance_", "", 1)
-	
+		
 	{% for jobInstance in vmInstances %}
     {% for jobType in jobInstance['job_types'] %}
     
@@ -99,11 +106,32 @@ func (a *ManifestGenerator) GenerateManifest(serviceDeployment serviceadapter.Se
 	if ({{jobInstance.nameInGo}}Route == nil) {
 		{{jobInstance.nameInGo}}Route = fmt.Sprintf("{{jobInstance['name']}}-%s", deploymentInstanceId)
 	}
+
 	{% endfor %}
 
+	/*
+		A Job instance can have job properties:
+		some values can come from Plan properties and others from the reequest json payload
+		If all the additional properties are under one node: 'parent_node_for_attributes'
+		resulting job properties would be:
+		properties:
+		  parent_node_for_attributes:
+		    attribute1: someValue1,...
+		    attribute2: someValue2,...
+	*/
+	sampleAttributeMap := map[string]interface{}{
+		"placeHolder": "testvalue",
+	}
 
-	{% for jobInstance in vmInstances %}
-	{% endfor %}
+	attribute1 := arbitraryParameters["attribute1"]
+	attribute2 := arbitraryParameters["attribute2"]
+	if (attribute1 != nil) {
+		sampleAttributeMap["attribute1"] =  attribute1
+	}
+	if (attribute2 != nil) {
+		sampleAttributeMap["attribute2"] =  attribute2
+	}
+
 
 	{% for jobInstance in vmInstances %}
 	{{jobInstance.nameInGo}}InstanceGroup := &instanceGroups[{{jobInstance.index}}]
@@ -171,12 +199,18 @@ func (a *ManifestGenerator) GenerateManifest(serviceDeployment serviceadapter.Se
 			{% endif %}
 		{% endfor %}
 	}
-	for key, val := range servicePlan.Properties {
-		{{jobInstance['nameInGo']}}InstanceGroup.Properties[key] = val
-	}
-
 	{% endfor %}
 
+	// Do deep copy of the service plan properties
+	// Modification or addition to job proeprties can be affect the original service plan properties if it was not deep-copied
+	{% for jobInstance in vmInstances %}
+	additionalProp{{loop.index}}Map := map[string]interface{} {}
+	MapDeepCopy(additionalProp{{loop.index}}Map, servicePlan.Properties)
+	{{jobInstance['nameInGo']}}InstanceGroup.Properties = additionalProp{{loop.index}}Map
+	CopyAdditionalParamsUnderAParentNode({{jobInstance['nameInGo']}}InstanceGroup.Properties, sampleAttributeMap, PARENT_NODE_FOR_ADDN_ATTRS)
+	
+	{% endfor %}
+	
 	/*
 	if testErrandJob, ok := getJobFromInstanceGroup("test-errand", testErrandInstanceGroup); ok {
 		jobTypeInGo2Job.Properties = map[string]interface{}{
@@ -249,6 +283,65 @@ func (a *ManifestGenerator) GenerateManifest(serviceDeployment serviceadapter.Se
 	a.StderrLogger.Printf("[{{product['name']}}] Generated Manifest:\n%s\n----------\n\n", string(manifestBytes))
 
 	return generatedManifest, nil
+}
+
+func MapCopy(dst, src interface{}) {
+    dv, sv := reflect.ValueOf(dst), reflect.ValueOf(src)
+
+    for _, k := range sv.MapKeys() {
+        dv.SetMapIndex(k, sv.MapIndex(k))
+    }
+}
+
+// Do deep copy of map contents
+// Shallow copy leads to changes across all references
+func MapDeepCopy(dst, src map[string]interface{}) {
+    for key, val := range src {
+    	//fmt.Printf("Key: %s, Val is : %v, Type is: %v\n", key, val, reflect.ValueOf(val).Kind())
+    	if ( reflect.TypeOf(val).Kind() == reflect.Map) {
+    		
+    		//fmt.Printf("Calling MapDeepCopy on val : %+v\n", val)
+    		newCopy := map[string]interface{}{}
+    		MapDeepCopy(newCopy, val.(map[string]interface{}))
+    		
+    		dst[key] = newCopy
+    	} else {
+        	dst[key] = val
+    	}
+    }
+}
+
+func CopyAdditionalParamsUnderAParentNode(destnAttributeMap, srcAttributeMap map[string]interface{}, parentNode string) {
+	existingNodeMap := destnAttributeMap[parentNode]
+
+	if (existingNodeMap == nil) {
+		srcAttributeMap[parentNode] = srcAttributeMap
+	} else {
+		existingStringMap, _ := existingNodeMap.(map[string]interface{})
+		for key, val := range srcAttributeMap {
+			// Assuming the value type is string
+			valStr := val.(string)
+			// Append the new value coming from the request to exisitng set
+			existingVal := existingStringMap[key]
+			if ((existingVal != nil) && (existingVal.(string) != "")) {
+				valStr = existingVal.(string) + "," + val.(string)					
+			}
+  			existingStringMap[key] =  valStr				
+  		}
+	}
+}
+
+// Override
+func UpdateManifest(serviceDeployment serviceadapter.ServiceDeployment,
+	servicePlan serviceadapter.Plan,
+	requestParams serviceadapter.RequestParameters,
+	previousManifest *bosh.BoshManifest,
+	previousPlan *serviceadapter.Plan,
+) (bosh.BoshManifest, error) {
+
+	// NOP
+	// Change code if update has to change the manifest using request params or changed plan type etc..
+	return *previousManifest, nil
 }
 
 func contains(s []string, e string) bool {

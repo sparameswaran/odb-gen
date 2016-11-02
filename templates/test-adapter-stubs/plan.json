@@ -18,6 +18,10 @@
    "properties": {
       "example": "property",
       "type": "small",
+      "parent_node_for_attributes": {
+            "attribute1": "dummyValue1",
+            "attribute2": "dummyValue2"
+         },
       "cf": { 
          "app_domains": [ "test-route.bosh-lite.com" ], 
          "nats": {  

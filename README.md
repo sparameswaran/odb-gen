@@ -47,6 +47,8 @@ The tools in this repo help generate the basic saffolding for a customized servi
   Example: ./convertYml2Json.sh manifest.yml manifest.json
 * Run ./createBinding.sh
   createBinding.sh tries to invoke the service adapter's create_binding.go and generate the credentials that would be part of the service bind call. 
+* To test update of a service based on newer request parameters (either instances or different set of parameters), run ./updateExistingManifest.sh
+  This would attempt to reuse the previously generated manifest.json (converted from manifest.yml by running convertYml2Json.sh script just before createBindind) and use additional modified request parameters to see how the manifest update occurs. The code does not take into account newer plan specification for an existing service (but can be achieved if needed).
 
 ## Understanding and customizing the service adapter code
 * generate_manifest.go code attempts to iterate over each vm instance and add properties like username/password for every job running within that vm  The username and passwords are randomly generated. The code also tries to expose those generated values to other vm via properties set. Feel free to edit/add/remove/change any additional properties that need to be set within the jobs. Then re-run the genManifest.sh script to generate the changed manifest.

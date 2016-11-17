@@ -1,0 +1,11 @@
+{
+  "parameters" : {
+  	"attribute1": "test-attribute3",
+    "attribute2": "test-attribute4",
+  	{% for vm in context['vms'] %}
+    	"{{ vm['nameInGo']}}_instances": {{ loop.index + 3}},
+    	"{{ vm['nameInGo']}}_route": "test-{{ vm['name_lower']}}-routeNew"{% if  not loop.last %},{% endif %}
+    {% endfor %}
+     
+  }
+}

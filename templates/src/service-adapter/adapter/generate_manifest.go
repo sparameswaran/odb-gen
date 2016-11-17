@@ -123,6 +123,7 @@ func (a *ManifestGenerator) GenerateManifest(serviceDeployment serviceadapter.Se
 		"placeHolder": "testvalue",
 	}
 
+	/*
 	attribute1 := arbitraryParameters["attribute1"]
 	attribute2 := arbitraryParameters["attribute2"]
 	if (attribute1 != nil) {
@@ -130,6 +131,10 @@ func (a *ManifestGenerator) GenerateManifest(serviceDeployment serviceadapter.Se
 	}
 	if (attribute2 != nil) {
 		sampleAttributeMap["attribute2"] =  attribute2
+	}
+	*/
+	for key, val := range arbitraryParameters {
+		sampleAttributeMap[key] = val
 	}
 
 
@@ -198,16 +203,22 @@ func (a *ManifestGenerator) GenerateManifest(serviceDeployment serviceadapter.Se
 				{% endfor %}
 			{% endif %}
 		{% endfor %}
+
+		
 	}
+	for key, val := range servicePlan.Properties {
+		{{jobInstance['nameInGo']}}InstanceGroup.Properties[key] = val
+	}
+	CopyAdditionalParamsUnderAParentNode({{jobInstance['nameInGo']}}InstanceGroup.Properties, sampleAttributeMap, PARENT_NODE_FOR_ADDN_ATTRS)
+	
 	{% endfor %}
 
 	// Do deep copy of the service plan properties
 	// Modification or addition to job proeprties can be affect the original service plan properties if it was not deep-copied
 	{% for jobInstance in vmInstances %}
-	additionalProp{{loop.index}}Map := map[string]interface{} {}
-	MapDeepCopy(additionalProp{{loop.index}}Map, servicePlan.Properties)
-	{{jobInstance['nameInGo']}}InstanceGroup.Properties = additionalProp{{loop.index}}Map
-	CopyAdditionalParamsUnderAParentNode({{jobInstance['nameInGo']}}InstanceGroup.Properties, sampleAttributeMap, PARENT_NODE_FOR_ADDN_ATTRS)
+	//additionalProp{{loop.index}}Map := map[string]interface{} {}
+	//MapDeepCopy(additionalProp{{loop.index}}Map, servicePlan.Properties)
+	//{{jobInstance['nameInGo']}}InstanceGroup.Properties = additionalProp{{loop.index}}Map
 	
 	{% endfor %}
 	
@@ -314,20 +325,56 @@ func MapDeepCopy(dst, src map[string]interface{}) {
 func CopyAdditionalParamsUnderAParentNode(destnAttributeMap, srcAttributeMap map[string]interface{}, parentNode string) {
 	existingNodeMap := destnAttributeMap[parentNode]
 
+	fmt.Printf("existing node map: %v\n", existingNodeMap)
 	if (existingNodeMap == nil) {
-		srcAttributeMap[parentNode] = srcAttributeMap
+		destnAttributeMap[parentNode] = srcAttributeMap
 	} else {
-		existingStringMap, _ := existingNodeMap.(map[string]interface{})
+		unionMap := make(map[string]interface{})
+		if existingAttributeMap, ok := existingNodeMap.(map[interface {}]interface {}); ok {
+
+			for key, val := range existingAttributeMap {
+
+				if keystr, ok := key.(string); ok {
+					fmt.Printf("key: %v, Val from existingNodeMap: %v\n", key, val)
+					// Assuming the value type is string
+					if valStr, ok := val.(string); ok {
+						additionalVal := srcAttributeMap[keystr]
+						if ((additionalVal != nil) && (additionalVal.(string) != "") && (additionalVal.(string) != val.(string))) {
+							valStr = val.(string) + "," + additionalVal.(string)					
+						}
+						unionMap[keystr] =  valStr
+					} else {
+						unionMap[keystr] =  val
+					}
+					
+	  			}			
+	  		}
+	  	} else if existingAttributeMap, ok := existingNodeMap.(map[string]interface {}); ok {
+			for keystr, val := range existingAttributeMap {
+				if valStr, ok := val.(string); ok {
+					additionalVal := srcAttributeMap[keystr]
+					if ((additionalVal != nil) && (additionalVal.(string) != "") && (additionalVal.(string) != val.(string))) {
+						valStr = val.(string) + "," + additionalVal.(string)					
+					}
+					unionMap[keystr] =  valStr
+				} else {
+					unionMap[keystr] =  val
+				}
+	  		}
+  		}		
+
 		for key, val := range srcAttributeMap {
-			// Assuming the value type is string
-			valStr := val.(string)
-			// Append the new value coming from the request to exisitng set
-			existingVal := existingStringMap[key]
-			if ((existingVal != nil) && (existingVal.(string) != "")) {
-				valStr = existingVal.(string) + "," + val.(string)					
+			// Ignore instances related parameters from properties set
+			if (! strings.Contains(key, "_instances") ) {
+				existingVal := unionMap[key]
+				if (existingVal == nil){
+					unionMap[key] =  val			
+				}
 			}
-  			existingStringMap[key] =  valStr				
   		}
+
+  		destnAttributeMap[parentNode] = unionMap
+
 	}
 }
 
@@ -339,8 +386,137 @@ func UpdateManifest(serviceDeployment serviceadapter.ServiceDeployment,
 	previousPlan *serviceadapter.Plan,
 ) (bosh.BoshManifest, error) {
 
+	arbitraryParameters := requestParams.ArbitraryParams()
+	
+	{% for jobInstance in vmInstances %}
+	{{jobInstance['nameInGo']}}NewRoute := arbitraryParameters["{{jobInstance['nameInGo']}}_route"]
+	{% endfor %}
+
 	// NOP
 	// Change code if update has to change the manifest using request params or changed plan type etc..
+
+	/*
+		A Job instance can have job properties:
+		some values can come from Plan properties and others from the reequest json payload
+		If all the additional properties are under one node: 'parent_node_for_attributes'
+		resulting job properties would be:
+		properties:
+		  parent_node_for_attributes:
+		    attribute1: someValue1,...
+		    attribute2: someValue2,...
+	*/
+	sampleAttributeMap := map[string]interface{}{
+		"placeHolder": "testvalue",
+	}
+
+	attribute1 := arbitraryParameters["attribute1"]
+	attribute2 := arbitraryParameters["attribute2"]
+	if (attribute1 != nil) {
+		sampleAttributeMap["attribute1"] =  attribute1
+	}
+	if (attribute2 != nil) {
+		sampleAttributeMap["attribute2"] =  attribute2
+	}
+
+
+	{% for jobInstance in vmInstances %}
+	{{jobInstance.nameInGo}}InstanceGroup := previousManifest.InstanceGroups[{{jobInstance.index}}]
+
+	{{jobInstance.nameInGo}}InstanceParams := arbitraryParameters["{{jobInstance.nameInGo}}_instances"]
+	if ({{jobInstance.nameInGo}}InstanceParams != nil) {
+		if floatval64, ok := {{jobInstance.nameInGo}}InstanceParams.(float64); ok {
+		    previousManifest.InstanceGroups[{{jobInstance.index}}].Instances = int(floatval64)
+		} else if intval, ok := {{jobInstance.nameInGo}}InstanceParams.(int); ok {
+		    previousManifest.InstanceGroups[{{jobInstance.index}}].Instances = int(intval)
+		} else if str, ok := {{jobInstance.nameInGo}}InstanceParams.(string); ok {
+			val, _ := strconv.ParseInt(str,10, 0)
+			previousManifest.InstanceGroups[{{jobInstance.index}}].Instances = int(val)
+		}
+	}
+
+	if ({{jobInstance['nameInGo']}}NewRoute != nil) {
+		{{jobInstance['nameInGo']}}InstanceGroup.Properties["address"] = {{jobInstance['nameInGo']}}NewRoute
+		{% for otherJobInstance in vmInstances %}
+			{% if otherJobInstance != jobInstance %}
+		{{jobInstance['nameInGo']}}InstanceGroup.Properties["{{otherJobInstance['nameInGo']}}_address"] = {{jobInstance['nameInGo']}}NewRoute
+			{% endif %}
+		{% endfor %}
+	}
+	
+	{% endfor %}
+	
+	// Do deep copy of the service plan properties
+	// Modification or addition to job properties can be affect the original service plan properties if it was not deep-copied
+	{% for jobInstance in vmInstances %}
+	
+
+	// Should the update use the existing properties to update/append or start again from original plan properties and add things from the request??
+	// Uncomment the following block if one needs to reset or rollback to pristine state based on service plan properties (without regenerating username/passwords)
+	/*
+	newJobProperties = map[string]interface{}{
+		"network": {{jobInstance['nameInGo']}}InstanceGroup.Networks[0].Name,
+		"address": {{jobInstance['nameInGo']}}InstanceGroup.Properties["address"],
+		{% for jobType in jobInstance['job_types'] %}
+		"{{jobType['nameInGo']}}_username": {{jobInstance['nameInGo']}}InstanceGroup.Properties["{{jobType['nameInGo']}}_username"],
+		"{{jobType['nameInGo']}}_password": {{jobInstance['nameInGo']}}InstanceGroup.Properties["{{jobType['nameInGo']}}_password"],
+		{% endfor %}
+		// Add other instance creds
+		{% for otherJobInstance in vmInstances %}
+			{% if otherJobInstance != jobInstance %}
+		"{{otherJobInstance['nameInGo']}}_address": {{jobInstance['nameInGo']}}InstanceGroup.Properties["address"],
+				{% for jobType in otherJobInstance['job_types'] %}
+		"{{otherJobInstance.nameInGo}}_{{jobType['nameInGo']}}_username": {{otherJobInstance['nameInGo']}}InstanceGroup.Properties["{{jobType['nameInGo']}}_username"],
+		"{{otherJobInstance.nameInGo}}_{{jobType['nameInGo']}}_password": {{otherJobInstance['nameInGo']}}InstanceGroup.Properties["{{jobType['nameInGo']}}_password"],
+				{% endfor %}
+			{% endif %}
+		{% endfor %}
+		
+	}
+	{{jobInstance['nameInGo']}}InstanceGroup.Properties = newJobProperties
+
+	for key, val := range servicePlan.Properties {
+		{{jobInstance['nameInGo']}}InstanceGroup.Properties[key] = val
+	}
+	*/
+
+
+	CopyAdditionalParamsUnderAParentNode({{jobInstance['nameInGo']}}InstanceGroup.Properties, sampleAttributeMap, PARENT_NODE_FOR_ADDN_ATTRS)
+	
+	{% endfor %}
+
+	/*
+	if testErrandJob, ok := getJobFromInstanceGroup("test-errand", testErrandInstanceGroup); ok {
+		jobTypeInGo2Job.Properties = map[string]interface{}{
+			"network": jobTypeInGo2InstanceGroup.Networks[0].Name,
+			"address": jobNameInGo2Route,
+			"cf": servicePlan.Properties["cf"],
+			"jobType1": servicePlan.Properties["jobType1"],
+			"jobType2": servicePlan.Properties["jobType2"],
+			"username": jobNameInGo2_admin_username,
+			"password": jobNameInGo2_admin_password,
+			"jobName1_admin_username": jobNameInGo1_admin_username,
+			"jobName1_admin_password": jobNameInGo1_admin_password,
+		}
+	}
+	*/
+
+	
+
+	/* These dont get used anymore in Bosh 2.0 style manifest
+	// Global properties are deprecated...
+	// Have to repeatedly add them at the job level each time
+	for key, val := range servicePlan.Properties {
+    	manifestProperties[key] = val
+    }
+    */
+
+	manifestBytes, err := yaml.Marshal(*previousManifest)
+	if err != nil {
+		fmt.Printf("[{{product['name']}}] error marshalling bosh manifest: %s", err)
+	}
+
+	fmt.Printf("[{{product['name']}}] Updated Manifest:\n%s\n----------\n\n", string(manifestBytes))
+
 	return *previousManifest, nil
 }
 

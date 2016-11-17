@@ -113,6 +113,7 @@ func (b *Binder) CreateBinding(bindingId string, boshVMs bosh.BoshVMs, manifest 
 	generatedBinding := serviceadapter.Binding{
 		Credentials: map[string]interface{}{
 			"service_type": servicePlanType,
+			"service_id": manifest.Name,
 			{% for jobInstance in vmInstances %}
 				"{{jobInstance.nameInGo}}_url": fmt.Sprintf("https://%s.%s", {{jobInstance['nameInGo']}}vm_route, cfDomainRoute),
 				"{{jobInstance['nameInGo']}}_hosts": {{jobInstance['nameInGo']}}vm_hosts,				

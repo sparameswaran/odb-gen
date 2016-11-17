@@ -82,8 +82,8 @@ def build(config, verbose=False):
         gen_tile_metadata('tile-templates', context)
         gen_scripts('scripts', context)
         gen_test_stubs('test-adapter-stubs', context)  
-        add_golang(context)
-        bosh('upload', 'blobs')
+        #add_golang(context)
+        #bosh('upload', 'blobs')
         output = bosh('create', 'release', '--force', '--final', '--with-tarball', '--version', context['version'])
         context['release'] = bosh_extract(output, [
             { 'label': 'name', 'pattern': 'Release name' },
@@ -427,6 +427,11 @@ def gen_test_stubs(dir, context, alternate_template=None):
         stubs_context
     )
     template.render(
+        os.path.join(test_stubs_dir, 'update_manifest.py'),
+        os.path.join(template_dir, 'update_manifest.py' ),
+        stubs_context
+    )
+    template.render(
         os.path.join(test_stubs_dir, 'deployment.json'),
         os.path.join(template_dir, 'deployment.json' ),
         stubs_context
@@ -439,6 +444,11 @@ def gen_test_stubs(dir, context, alternate_template=None):
     template.render(
         os.path.join(test_stubs_dir, 'request.json'),
         os.path.join(template_dir, 'request.json' ),
+        stubs_context
+    )
+    template.render(
+        os.path.join(test_stubs_dir, 'request2.json'),
+        os.path.join(template_dir, 'request2.json' ),
         stubs_context
     )
     template.render(
@@ -456,6 +466,7 @@ def gen_test_stubs(dir, context, alternate_template=None):
     shutil.copy(context['root_dir'] + '/templates/' + template_dir + '/createBinding.sh',  test_stubs_dir)
     shutil.copy(context['root_dir'] + '/templates/' + template_dir + '/convertYml2Json.sh',  test_stubs_dir)
     shutil.copy(context['root_dir'] + '/templates/' + template_dir + '/genManifest.sh',  test_stubs_dir)
+    shutil.copy(context['root_dir'] + '/templates/' + template_dir + '/updateExistingManifest.sh',  test_stubs_dir)
     
     for scriptFile in glob.glob(test_stubs_dir + '/*.??'):
         fileStat = os.stat(scriptFile)

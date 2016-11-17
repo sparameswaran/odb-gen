@@ -2,6 +2,10 @@
   "parameters" : {
   	"attribute1": "test-attribute3",
     "attribute2": "test-attribute4",
+    "nested_tag": {
+         "nested_attribute1": "test-dummyValue3",
+         "nested_attribute2": "test-dummyValue4"
+      },
   	{% for vm in context['vms'] %}
     	"{{ vm['nameInGo']}}_instances": {{ loop.index + 3}},
     	"{{ vm['nameInGo']}}_route": "test-{{ vm['name_lower']}}-routeNew"{% if  not loop.last %},{% endif %}

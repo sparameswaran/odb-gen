@@ -123,19 +123,11 @@ func (a *ManifestGenerator) GenerateManifest(serviceDeployment serviceadapter.Se
 		"placeHolder": "testvalue",
 	}
 
-	/*
-	attribute1 := arbitraryParameters["attribute1"]
-	attribute2 := arbitraryParameters["attribute2"]
-	if (attribute1 != nil) {
-		sampleAttributeMap["attribute1"] =  attribute1
-	}
-	if (attribute2 != nil) {
-		sampleAttributeMap["attribute2"] =  attribute2
-	}
-	*/
 	for key, val := range arbitraryParameters {
-		sampleAttributeMap[key] = val
-	}
+    	if (val != nil) {
+    		sampleAttributeMap[key] = val
+    	}
+    }
 
 
 	{% for jobInstance in vmInstances %}
@@ -209,7 +201,9 @@ func (a *ManifestGenerator) GenerateManifest(serviceDeployment serviceadapter.Se
 	for key, val := range servicePlan.Properties {
 		{{jobInstance['nameInGo']}}InstanceGroup.Properties[key] = val
 	}
-	CopyAdditionalParamsUnderAParentNode({{jobInstance['nameInGo']}}InstanceGroup.Properties, sampleAttributeMap, PARENT_NODE_FOR_ADDN_ATTRS)
+	//CopyAdditionalParamsUnderAParentNode({{jobInstance['nameInGo']}}InstanceGroup.Properties, sampleAttributeMap, PARENT_NODE_FOR_ADDN_ATTRS)
+	
+	MergeAdditionalParams({{jobInstance['nameInGo']}}InstanceGroup.Properties, sampleAttributeMap)
 	
 	{% endfor %}
 
@@ -322,36 +316,29 @@ func MapDeepCopy(dst, src map[string]interface{}) {
     }
 }
 
+/*
 func CopyAdditionalParamsUnderAParentNode(destnAttributeMap, srcAttributeMap map[string]interface{}, parentNode string) {
 	existingNodeMap := destnAttributeMap[parentNode]
 
 	fmt.Printf("existing node map: %v\n", existingNodeMap)
 	if (existingNodeMap == nil) {
 		destnAttributeMap[parentNode] = srcAttributeMap
-	} else {
-		unionMap := make(map[string]interface{})
-		if existingAttributeMap, ok := existingNodeMap.(map[interface {}]interface {}); ok {
+		return
+	} 
 
-			for key, val := range existingAttributeMap {
+	unionMap := make(map[string]interface{})
+	if existingAttributeMap, ok := existingNodeMap.(map[interface {}]interface {}); ok {
 
-				if keystr, ok := key.(string); ok {
-					fmt.Printf("key: %v, Val from existingNodeMap: %v\n", key, val)
-					// Assuming the value type is string
-					if valStr, ok := val.(string); ok {
-						additionalVal := srcAttributeMap[keystr]
-						if ((additionalVal != nil) && (additionalVal.(string) != "") && (additionalVal.(string) != val.(string))) {
-							valStr = val.(string) + "," + additionalVal.(string)					
-						}
-						unionMap[keystr] =  valStr
-					} else {
-						unionMap[keystr] =  val
+		for key, val := range existingAttributeMap {
+
+			if keystr, ok := key.(string); ok {
+				//fmt.Printf("key: %v, Val from existingNodeMap: %v\n", key, val)
+				// Assuming the value type is string
+				if valMap, ok := val.(map[string]interface{}); ok {
+					if destMap, ok := existingAttributeMap[key].(map[string]interface{}); ok {
+						CopyAdditionalParamsUnderAParentNode(destMap, valMap, keystr)
 					}
-					
-	  			}			
-	  		}
-	  	} else if existingAttributeMap, ok := existingNodeMap.(map[string]interface {}); ok {
-			for keystr, val := range existingAttributeMap {
-				if valStr, ok := val.(string); ok {
+				} else if valStr, ok := val.(string); ok {
 					additionalVal := srcAttributeMap[keystr]
 					if ((additionalVal != nil) && (additionalVal.(string) != "") && (additionalVal.(string) != val.(string))) {
 						valStr = val.(string) + "," + additionalVal.(string)					
@@ -360,22 +347,82 @@ func CopyAdditionalParamsUnderAParentNode(destnAttributeMap, srcAttributeMap map
 				} else {
 					unionMap[keystr] =  val
 				}
-	  		}
-  		}		
-
-		for key, val := range srcAttributeMap {
-			// Ignore instances related parameters from properties set
-			if (! strings.Contains(key, "_instances") ) {
-				existingVal := unionMap[key]
-				if (existingVal == nil){
-					unionMap[key] =  val			
+				
+  			}			
+  		}
+  	} else if existingAttributeMap, ok := existingNodeMap.(map[string]interface {}); ok {
+		for keystr, val := range existingAttributeMap {
+			if valMap, ok := val.(map[string]interface{}); ok {
+				if destMap, ok := existingAttributeMap[key].(map[string]interface{}); ok {
+					CopyAdditionalParamsUnderAParentNode(destMap, valMap, keystr)
 				}
+			} else if valStr, ok := val.(string); ok {
+				additionalVal := srcAttributeMap[keystr]
+				if ((additionalVal != nil) && (additionalVal.(string) != "") && (additionalVal.(string) != val.(string))) {
+					valStr = val.(string) + "," + additionalVal.(string)					
+				}
+				unionMap[keystr] =  valStr
+			} else {
+				unionMap[keystr] =  val
 			}
   		}
+		}		
 
-  		destnAttributeMap[parentNode] = unionMap
+	for key, val := range srcAttributeMap {
+		// Ignore instances related parameters from properties set
+		if (! strings.Contains(key, "_instances") ) {
+			existingVal := unionMap[key]
+			if (existingVal == nil){
+				unionMap[key] =  val			
+			}
+		}
+		}
 
+		destnAttributeMap[parentNode] = unionMap
+}
+*/
+
+// Change the logic from Replace to Append if needed for string values
+func MergeAdditionalParams(destnAttributeMap, srcAttributeMap map[string]interface{}) {
+
+	// Default is to replace
+	REPLACE_STRING_VALUES := true
+
+	for key, val := range srcAttributeMap {
+		//fmt.Printf("key: %v, Val from src: %v\n", key, val)
+		// Ignore instances related parameters from properties set
+		if ( strings.Contains(key, "_instances") || (val == nil) ) {
+			continue
+		}
+
+		existingVal := destnAttributeMap[key]
+		//fmt.Printf("Existing key: %s, Val : %v\n", key, existingVal)
+		if (existingVal == nil){
+			destnAttributeMap[key] = val
+			continue							
+		} 
+
+
+		if valMap, ok := val.(map[string]interface{}); ok {
+			if destMap, ok := destnAttributeMap[key].(map[string]interface{}); ok {
+				MergeAdditionalParams(destMap, valMap)
+			}
+		} else {
+
+			if (REPLACE_STRING_VALUES) {
+				destnAttributeMap[key] = val
+				continue	
+			}
+
+			if valStr, ok := val.(string); ok {
+				if ( (valStr != "") && (valStr != existingVal.(string)) ) {
+					valStr = existingVal.(string) + "," + valStr	
+					destnAttributeMap[key] = valStr				
+				}
+			}
+		}
 	}
+	//fmt.Printf("Updated content: %v\n", destnAttributeMap)
 }
 
 // Override
@@ -409,14 +456,11 @@ func UpdateManifest(serviceDeployment serviceadapter.ServiceDeployment,
 		"placeHolder": "testvalue",
 	}
 
-	attribute1 := arbitraryParameters["attribute1"]
-	attribute2 := arbitraryParameters["attribute2"]
-	if (attribute1 != nil) {
-		sampleAttributeMap["attribute1"] =  attribute1
-	}
-	if (attribute2 != nil) {
-		sampleAttributeMap["attribute2"] =  attribute2
-	}
+	for key, val := range arbitraryParameters {
+    	if (val != nil) {
+    		sampleAttributeMap[key] = val
+    	}
+    }
 
 
 	{% for jobInstance in vmInstances %}
@@ -451,9 +495,9 @@ func UpdateManifest(serviceDeployment serviceadapter.ServiceDeployment,
 	
 
 	// Should the update use the existing properties to update/append or start again from original plan properties and add things from the request??
-	// Uncomment the following block if one needs to reset or rollback to pristine state based on service plan properties (without regenerating username/passwords)
-	/*
-	newJobProperties = map[string]interface{}{
+	// Comment the following block if one wants to only apply new updates on top of existing config properties (without regenerating username/passwords)
+	// Comment from here... this block tries to reset from pristine plan properties and then apply any requests parameter properties
+	newJobProperties{{jobInstance.index}} := map[string]interface{}{
 		"network": {{jobInstance['nameInGo']}}InstanceGroup.Networks[0].Name,
 		"address": {{jobInstance['nameInGo']}}InstanceGroup.Properties["address"],
 		{% for jobType in jobInstance['job_types'] %}
@@ -472,15 +516,18 @@ func UpdateManifest(serviceDeployment serviceadapter.ServiceDeployment,
 		{% endfor %}
 		
 	}
-	{{jobInstance['nameInGo']}}InstanceGroup.Properties = newJobProperties
+	{{jobInstance['nameInGo']}}InstanceGroup.Properties = newJobProperties{{jobInstance.index}}
 
 	for key, val := range servicePlan.Properties {
 		{{jobInstance['nameInGo']}}InstanceGroup.Properties[key] = val
 	}
-	*/
+	// Comment off till here...
 
 
-	CopyAdditionalParamsUnderAParentNode({{jobInstance['nameInGo']}}InstanceGroup.Properties, sampleAttributeMap, PARENT_NODE_FOR_ADDN_ATTRS)
+	//CopyAdditionalParamsUnderAParentNode
+	MergeAdditionalParams({{jobInstance['nameInGo']}}InstanceGroup.Properties, sampleAttributeMap)
+	// For some reason, the properties changes made dont make it back to the actual instance group
+	previousManifest.InstanceGroups[{{jobInstance.index}}] = {{jobInstance['nameInGo']}}InstanceGroup
 	
 	{% endfor %}
 

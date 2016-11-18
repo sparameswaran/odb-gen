@@ -52,7 +52,7 @@ func (a *ManifestGenerator) GenerateManifest(serviceDeployment serviceadapter.Se
 
 	// If this is an update, handle the changes inside updateManifest and return the manifest
 	if (previousManifest != nil) {
-		return UpdateManifest(serviceDeployment, servicePlan, requestParams, previousManifest, previousPlan)
+		return a.UpdateManifest(serviceDeployment, servicePlan, requestParams, previousManifest, previousPlan)
 	}
 
 	//logger := log.New(os.Stderr, "[{{product['name']}}] ", log.LstdFlags)
@@ -400,8 +400,7 @@ func MergeAdditionalParams(destnAttributeMap, srcAttributeMap map[string]interfa
 		if (existingVal == nil){
 			destnAttributeMap[key] = val
 			continue							
-		} 
-
+		}
 
 		if valMap, ok := val.(map[string]interface{}); ok {
 			if destMap, ok := destnAttributeMap[key].(map[string]interface{}); ok {
@@ -426,7 +425,7 @@ func MergeAdditionalParams(destnAttributeMap, srcAttributeMap map[string]interfa
 }
 
 // Override
-func UpdateManifest(serviceDeployment serviceadapter.ServiceDeployment,
+func (a *ManifestGenerator) UpdateManifest(serviceDeployment serviceadapter.ServiceDeployment,
 	servicePlan serviceadapter.Plan,
 	requestParams serviceadapter.RequestParameters,
 	previousManifest *bosh.BoshManifest,
@@ -434,6 +433,7 @@ func UpdateManifest(serviceDeployment serviceadapter.ServiceDeployment,
 ) (bosh.BoshManifest, error) {
 
 	arbitraryParameters := requestParams.ArbitraryParams()
+	a.StderrLogger.Printf("%+v", arbitraryParameters)
 	
 	{% for jobInstance in vmInstances %}
 	{{jobInstance['nameInGo']}}NewRoute := arbitraryParameters["{{jobInstance['nameInGo']}}_route"]
@@ -559,10 +559,10 @@ func UpdateManifest(serviceDeployment serviceadapter.ServiceDeployment,
 
 	manifestBytes, err := yaml.Marshal(*previousManifest)
 	if err != nil {
-		fmt.Printf("[{{product['name']}}] error marshalling bosh manifest: %s", err)
+		a.StderrLogger.Printf("[{{product['name']}}] error marshalling bosh manifest: %s", err)
 	}
 
-	fmt.Printf("[{{product['name']}}] Updated Manifest:\n%s\n----------\n\n", string(manifestBytes))
+	a.StderrLogger.Printf("[{{product['name']}}] Updated Manifest:\n%s\n----------\n\n", string(manifestBytes))
 
 	return *previousManifest, nil
 }
